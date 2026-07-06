@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import NeonDots from "./components/NeonDots";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,10 +27,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="relative min-h-full flex flex-col text-slate-100">
-        <NeonDots />
-        <div className="relative z-10 flex min-h-full flex-1 flex-col">{children}</div>
-      </body>
+      <body className="min-h-full flex flex-col bg-slate-50">{children}</body>
     </html>
   );
 }

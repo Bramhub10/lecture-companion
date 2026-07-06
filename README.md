@@ -65,7 +65,7 @@ For a hosted deployment, update the redirect URI to your domain and add it in Go
 Want your own private instance running on **your** keys? Click the button, and Vercel will
 copy this app into your account and prompt you for the two keys below:
 
-<!-- DEPLOY_BUTTON -->
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FBramhub10%2Flecture-companion&env=AI_GATEWAY_API_KEY,DEEPGRAM_API_KEY&envDescription=Your%20own%20Vercel%20AI%20Gateway%20and%20Deepgram%20keys&envLink=https%3A%2F%2Fgithub.com%2FBramhub10%2Flecture-companion%23deploy-your-own-copy&project-name=lecture-companion&repository-name=lecture-companion)
 
 You'll be asked for:
 

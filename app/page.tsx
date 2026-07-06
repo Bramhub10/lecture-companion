@@ -353,15 +353,15 @@ export default function Home() {
     <main className="mx-auto min-h-screen max-w-3xl px-6 py-12 text-slate-800">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Lecture Companion</h1>
-          <p className="mt-2 text-slate-500">
+          <h1 className="text-3xl font-semibold tracking-tight text-white">StudyBuddy</h1>
+          <p className="mt-2 text-slate-300/80">
             Open it when class starts. It listens, then hands you clean notes, action items, and
             every deadline ready for your calendar.
           </p>
         </div>
         <button
           onClick={() => setShowSettings(true)}
-          className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+          className="shrink-0 rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-sm font-medium text-slate-100 shadow-sm backdrop-blur hover:bg-white/20"
         >
           ⚙ Keys
         </button>

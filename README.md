@@ -1,4 +1,4 @@
-# Lecture Companion 🎧
+# StudyBuddy 🎧
 
 Open it when class starts. It records the lecture, transcribes it, and hands you
 back clean study notes — a summary, key points, key terms, action items, open

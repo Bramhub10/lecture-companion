@@ -20,7 +20,9 @@
 }
 
 body {
-  background: var(--background);
+  /* Deep navy backdrop so the neon dots read as a soft glow. */
+  background: radial-gradient(ellipse at 50% 0%, #0b1226 0%, #070a16 55%, #04050b 100%)
+    no-repeat fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

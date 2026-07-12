@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { UserButton } from "@clerk/nextjs";
+import { upload } from "@vercel/blob/client";
 import type { LectureAnalysis } from "@/lib/schema";
 import { googleCalendarUrl, buildIcs } from "@/lib/calendar";
 import {
@@ -207,8 +209,20 @@ export default function Home() {
         headers: keyHeaders(),
         body: form,
       });
-      const data = await res.json();
+      // Parse defensively: platform-level errors (timeouts, size limits) can come
+      // back as plain text/HTML, and calling res.json() on those used to blow up
+      // with "Unexpected token ...". Read text first, then try to parse.
+      const raw = await res.text();
+      let data: { transcript?: string; analysis?: LectureAnalysis; error?: string };
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error(
+          res.ok ? "The server sent back an unreadable response." : raw.slice(0, 200).trim() || `Request failed (HTTP ${res.status}).`
+        );
+      }
       if (!res.ok) throw new Error(data.error || "Processing failed.");
+      if (!data.transcript || !data.analysis) throw new Error("The server returned an incomplete result.");
 
       setTranscript(data.transcript);
       setAnalysis(data.analysis);
@@ -224,13 +238,36 @@ export default function Home() {
     }
   }, []);
 
-  const processBlob = useCallback(
-    (blob: Blob) => {
-      const form = new FormData();
-      form.append("audio", blob, "lecture.webm");
-      return runProcess(form, true);
+  /**
+   * Upload audio straight to Vercel Blob (bypassing the serverless body-size
+   * limit that used to reject full-length lectures), then hand the URL to the
+   * processor. `clearAfter` wipes the crash-recovery buffer once a recording is
+   * safely transcribed.
+   */
+  const uploadAndProcess = useCallback(
+    async (blob: Blob, filename: string, clearAfter: boolean) => {
+      setStatus("processing");
+      setError(null);
+      try {
+        const { url } = await upload(filename, blob, {
+          access: "public",
+          handleUploadUrl: "/api/blob/upload",
+          contentType: blob.type || "audio/webm",
+        });
+        const form = new FormData();
+        form.append("audioUrl", url);
+        await runProcess(form, clearAfter);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't upload the recording.");
+        setStatus("error");
+      }
     },
     [runProcess]
+  );
+
+  const processBlob = useCallback(
+    (blob: Blob) => uploadAndProcess(blob, `lecture-${Date.now()}.webm`, true),
+    [uploadAndProcess]
   );
 
   const processTranscript = useCallback(() => {
@@ -313,11 +350,9 @@ export default function Home() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const form = new FormData();
-      form.append("audio", file, file.name);
-      void runProcess(form, false);
+      void uploadAndProcess(file, file.name, false);
     },
-    [runProcess]
+    [uploadAndProcess]
   );
 
   const openSaved = useCallback((l: SavedLecture) => {
@@ -359,12 +394,21 @@ export default function Home() {
             every deadline ready for your calendar.
           </p>
         </div>
-        <button
-          onClick={() => setShowSettings(true)}
-          className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-        >
-          ⚙ Keys
-        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          <a
+            href="/pricing"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+          >
+            Plans
+          </a>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+          >
+            ⚙ Keys
+          </button>
+          <UserButton />
+        </div>
       </header>
 
       {showSettings && (

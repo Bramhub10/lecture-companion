@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { studySchema } from "@/lib/schema";
 import { gatewayModel } from "@/lib/ai";
+import { auth } from "@clerk/nextjs/server";
 
 export const maxDuration = 120;
 
 /** Generate flashcards + a quiz grounded in a lecture transcript. */
 export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Sign in to continue." }, { status: 401 });
+  }
   try {
     const { transcript, title } = (await req.json()) as { transcript: string; title?: string };
     if (!transcript?.trim()) {

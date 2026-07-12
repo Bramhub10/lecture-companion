@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { streamText } from "ai";
 import { gatewayModel } from "@/lib/ai";
+import { auth } from "@clerk/nextjs/server";
 
 export const maxDuration = 60;
 
@@ -12,6 +13,8 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
  * reason about what was actually said in class.
  */
 export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return new Response("Sign in to continue.", { status: 401 });
   try {
     const { messages, transcript, title } = (await req.json()) as {
       messages: ChatMessage[];

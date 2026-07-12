@@ -16,7 +16,11 @@ export default clerkMiddleware(async (auth, req) => {
   const isAuthPage =
     pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
   const isApi = pathname.startsWith("/api");
-  if (isAuthPage || isApi) return; // public pages + self-protecting API routes
+  // Marketing/legal pages a signed-out visitor must be able to see (funnel + compliance).
+  const isPublicPage = ["/pricing", "/terms", "/privacy"].some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
+  if (isAuthPage || isApi || isPublicPage) return; // public + self-protecting API routes
 
   const { userId } = await auth();
   if (!userId) {

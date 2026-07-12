@@ -34,6 +34,11 @@ export default function PricingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       });
+      if (res.status === 401) {
+        // Signed-out visitor browsing public pricing — send them to sign up first.
+        window.location.href = "/sign-up?redirect_url=/pricing";
+        return;
+      }
       const data = (await res.json()) as { url?: string; error?: string };
       if (data.url) window.location.href = data.url;
       else setError(data.error ?? "Could not start checkout.");
@@ -156,6 +161,16 @@ export default function PricingPage() {
           </button>
         </div>
       )}
+
+      <footer className="mt-12 border-t border-slate-200 pt-6 text-xs text-slate-400">
+        <Link href="/terms" className="hover:text-slate-600">
+          Terms
+        </Link>
+        <span className="mx-2">·</span>
+        <Link href="/privacy" className="hover:text-slate-600">
+          Privacy
+        </Link>
+      </footer>
     </main>
   );
 }

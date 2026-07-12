@@ -13,7 +13,13 @@ import {
   getMeta,
   setMeta,
 } from "@/lib/idb";
-import { loadHistory, saveLecture, removeLecture, type SavedLecture } from "@/lib/history";
+import {
+  fetchLectures,
+  saveLecture,
+  deleteLecture,
+  migrateLegacyHistory,
+  type SavedLecture,
+} from "@/lib/history";
 import { getKeys, saveKeys, keyHeaders, type ApiKeys } from "@/lib/keys";
 import ChatPanel from "./components/ChatPanel";
 import CourseChat from "./components/CourseChat";
@@ -109,6 +115,7 @@ export default function Home() {
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [recoverable, setRecoverable] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
   const [history, setHistory] = useState<SavedLecture[]>([]);
   const [gcal, setGcal] = useState<Gcal>(null);
   const [gcalNotice, setGcalNotice] = useState<string | null>(null);
@@ -133,7 +140,11 @@ export default function Home() {
       .catch(() => {
         if (!loaded.gateway) setShowSettings(true);
       });
-    setHistory(loadHistory());
+    // Migrate any legacy localStorage history to the server, then load from it.
+    migrateLegacyHistory()
+      .then(() => fetchLectures())
+      .then(setHistory)
+      .catch(() => {});
     chunkCount().then((n) => setRecoverable(n > 0)).catch(() => {});
 
     const refreshGcal = () =>
@@ -226,7 +237,8 @@ export default function Home() {
 
       setTranscript(data.transcript);
       setAnalysis(data.analysis);
-      setHistory(saveLecture(data.analysis, data.transcript));
+      const saved = await saveLecture(data.analysis, data.transcript);
+      if (saved) setHistory((h) => [saved, ...h]);
       setStatus("done");
       if (clearAfter) {
         await clearRecording().catch(() => {});
@@ -311,6 +323,26 @@ export default function Home() {
     }
   }, [processBlob, startTimer]);
 
+  // Gate the first recording behind a one-time consent acknowledgment: the user
+  // is responsible for having permission to record (laws + school policy vary).
+  const handleRecordClick = useCallback(() => {
+    const consented =
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("lecture-companion:recording-consent");
+    if (consented) void startRecording();
+    else setShowConsent(true);
+  }, [startRecording]);
+
+  const acceptConsent = useCallback(() => {
+    try {
+      window.localStorage.setItem("lecture-companion:recording-consent", "1");
+    } catch {
+      /* ignore */
+    }
+    setShowConsent(false);
+    void startRecording();
+  }, [startRecording]);
+
   const togglePause = useCallback(() => {
     const rec = recorderRef.current;
     if (!rec) return;
@@ -362,7 +394,9 @@ export default function Home() {
   }, []);
 
   const deleteSaved = useCallback((id: string) => {
-    setHistory(removeLecture(id));
+    // Optimistic: drop it from the UI now, delete server-side in the background.
+    setHistory((h) => h.filter((l) => l.id !== id));
+    deleteLecture(id).catch(() => {});
   }, []);
 
   const reset = useCallback(() => {
@@ -420,6 +454,44 @@ export default function Home() {
           }}
           onClose={() => setShowSettings(false)}
         />
+      )}
+
+      {showConsent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-slate-900">Before you record</h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              You&rsquo;re responsible for making sure you&rsquo;re allowed to record. Recording laws
+              vary by state and country, and your school or instructor may have their own rules. Only
+              record where you have permission to do so.
+            </p>
+            <p className="mt-3 text-xs text-slate-400">
+              See our{" "}
+              <a href="/terms" className="underline hover:text-slate-600">
+                Terms
+              </a>{" "}
+              and{" "}
+              <a href="/privacy" className="underline hover:text-slate-600">
+                Privacy Policy
+              </a>
+              .
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setShowConsent(false)}
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={acceptConsent}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              >
+                I understand — start
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {(!canAnalyze || !canTranscribe) && (
@@ -507,7 +579,7 @@ export default function Home() {
           ) : (
             <>
               <button
-                onClick={startRecording}
+                onClick={handleRecordClick}
                 disabled={busy}
                 className="rounded-full bg-indigo-600 px-10 py-4 text-lg font-medium text-white shadow-sm transition hover:bg-indigo-500 disabled:opacity-50"
               >
@@ -566,6 +638,20 @@ export default function Home() {
       {view === "chat" && <CourseChat history={history} />}
       {view === "calendar" && <CalendarView history={history} gcal={gcal} />}
       {view === "study" && <StudyView history={history} />}
+
+      <footer className="mt-12 border-t border-slate-200 pt-6 text-xs text-slate-400">
+        <a href="/pricing" className="hover:text-slate-600">
+          Plans
+        </a>
+        <span className="mx-2">·</span>
+        <a href="/terms" className="hover:text-slate-600">
+          Terms
+        </a>
+        <span className="mx-2">·</span>
+        <a href="/privacy" className="hover:text-slate-600">
+          Privacy
+        </a>
+      </footer>
     </main>
   );
 }

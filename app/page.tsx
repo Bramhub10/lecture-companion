@@ -261,10 +261,13 @@ export default function Home() {
       setStatus("processing");
       setError(null);
       try {
+        // MediaRecorder reports types like "audio/webm;codecs=opus"; Blob's
+        // allow-list matches on the base type, so drop the codecs parameter.
+        const contentType = (blob.type || "audio/webm").split(";")[0].trim();
         const { url } = await upload(filename, blob, {
           access: "public",
           handleUploadUrl: "/api/blob/upload",
-          contentType: blob.type || "audio/webm",
+          contentType,
         });
         const form = new FormData();
         form.append("audioUrl", url);
